@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "Gaming";
+  src: url("/fonts/Orbitron-Regular.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Gaming";
+  src: url("/fonts/Orbitron-Bold.woff2") format("woff2");
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --background: 146 30% 12%;
+  --foreground: 0 0% 100%;
+}
+
+body {
+  background-color: #10281d;
+  color: white;
+  font-family: "Inter", sans-serif;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #10281d;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1a3c2c;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #245240;
+}
