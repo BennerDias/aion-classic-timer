@@ -19,12 +19,14 @@
 }
 
 :root {
-  --background: 146 30% 12%;
+  --background: 146 30% 8%;
   --foreground: 0 0% 100%;
 }
 
 body {
-  background-color: #10281d;
+  background: linear-gradient(to right, #0c1f16 0%, #000000 100%);
+  min-height: 100vh;
+  margin: 0;
   color: white;
   font-family: "Inter", sans-serif;
 }
@@ -36,14 +38,18 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #10281d;
+  background: #0c1f16;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1a3c2c;
+  background: #163526;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #245240;
+  background: #1e4432;
+}
+
+#title {
+  font-variant: small-caps;
 }
