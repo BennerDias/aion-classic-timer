@@ -5,7 +5,7 @@ export const events: Event[] = [
     id: "1",
     name: "Dredgion",
     day: [0, 1, 2, 3, 4, 5, 6], // Todos os dias
-    openTimes: ["07:00", "12:00", "18:00"], // Abre 3x por dia
+    openTimes: ["07:00", "13:00", "18:00"], // Abre 3x por dia
     duration: 120, // Permanece aberto por 2 horas (120 minutos)
     image: "/images/events/Dredgion.webp",
     status: "closed",
@@ -23,7 +23,7 @@ export const events: Event[] = [
     id: "3",
     name: "Arena of Discipline",
     day: [0, 1, 2, 3, 4, 5, 6], // Todos os dias
-    time: "13:00",
+    time: "13:00", // Corrigido: era um array, agora é uma string
     duration: 360, // 6 horas
     image: "/images/events/ArenaOfDiscipline.webp",
     status: "closed",

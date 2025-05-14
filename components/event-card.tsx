@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import type { Event } from "@/types/event"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
@@ -17,225 +17,315 @@ export function EventCard({ event, currentTime }: EventCardProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [nextTime, setNextTime] = useState("")
 
-  useEffect(() => {
-    updateEventStatus()
-  }, [currentTime])
+  // Usar refs para armazenar as datas para evitar re-renderizações
+  const nextEventDateRef = useRef<Date | null>(null)
+  const nextCloseDateRef = useRef<Date | null>(null)
 
-  function updateEventStatus() {
+  // Ref para controlar se o componente está montado
+  const isMountedRef = useRef(true)
+
+  // Efeito para calcular o status inicial
+  useEffect(() => {
+    // Calcular o status inicial
+    calculateEventStatus()
+
+    // Limpar quando o componente for desmontado
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [event, currentTime]) // Dependências: evento e tempo atual
+
+  // Efeito separado para configurar o timer
+  useEffect(() => {
+    // Configurar um intervalo para atualizar o tempo restante a cada segundo
+    const intervalId = setInterval(() => {
+      updateTimeRemaining()
+    }, 1000)
+
+    // Limpar o intervalo quando o componente for desmontado
+    return () => clearInterval(intervalId)
+  }, []) // Sem dependências - executa apenas uma vez
+
+  // Função para calcular o status do evento e definir as próximas datas importantes
+  function calculateEventStatus() {
+    const now = new Date() // Usar a hora atual, não a hora passada como prop
+
     // Obter o dia atual da semana (0 = Domingo, 1 = Segunda, ..., 6 = Sábado)
-    const currentDay = currentTime.getDay()
+    const currentDay = now.getDay()
     // Converter para nosso formato (0 = Segunda, ..., 6 = Domingo)
     const adjustedCurrentDay = currentDay === 0 ? 6 : currentDay - 1
 
     // Verificar se o evento ocorre no dia atual
     const eventDays = Array.isArray(event.day) ? event.day : [event.day]
-    const isEventDay = eventDays.includes(adjustedCurrentDay)
 
-    if (!isEventDay) {
-      // Encontrar o próximo dia em que o evento ocorre
-      let nextDay = -1
-      let daysUntilNext = 7 // Máximo de dias em uma semana
+    // Primeiro, verificar se o evento está aberto agora
+    // Verificar todos os dias da semana, começando pelo dia atual
+    let isEventOpen = false
+    let openUntil: Date | null = null
 
-      for (const day of eventDays) {
-        let diff = day - adjustedCurrentDay
-        if (diff <= 0) diff += 7 // Se for no passado, adiciona uma semana
-        if (diff < daysUntilNext) {
-          daysUntilNext = diff
-          nextDay = day
+    // Verificar se o evento está aberto agora
+    if (eventDays.includes(adjustedCurrentDay)) {
+      // Verificar horários de abertura
+      if (event.openTimes && event.openTimes.length > 0) {
+        for (const openTime of event.openTimes) {
+          if (typeof openTime !== "string") continue
+
+          const timeParts = openTime.split(":")
+          if (timeParts.length !== 2) continue
+
+          const openHour = Number.parseInt(timeParts[0], 10)
+          const openMinute = Number.parseInt(timeParts[1], 10)
+
+          if (isNaN(openHour) || isNaN(openMinute)) continue
+
+          // Criar data para este horário de abertura
+          const openDate = new Date(now)
+          openDate.setHours(openHour, openMinute, 0, 0)
+
+          // Calcular horário de fechamento
+          const closeDate = new Date(openDate)
+          closeDate.setMinutes(closeDate.getMinutes() + (event.duration || 60))
+
+          // Verificar se o evento está aberto agora
+          if (now >= openDate && now < closeDate) {
+            isEventOpen = true
+            openUntil = closeDate
+            break
+          }
+        }
+      } else if (event.time) {
+        if (typeof event.time === "string") {
+          const timeParts = event.time.split(":")
+          if (timeParts.length === 2) {
+            const openHour = Number.parseInt(timeParts[0], 10)
+            const openMinute = Number.parseInt(timeParts[1], 10)
+
+            if (!isNaN(openHour) && !isNaN(openMinute)) {
+              // Criar data para este horário de abertura
+              const openDate = new Date(now)
+              openDate.setHours(openHour, openMinute, 0, 0)
+
+              // Calcular horário de fechamento
+              const closeDate = new Date(openDate)
+              closeDate.setMinutes(closeDate.getMinutes() + (event.duration || 60))
+
+              // Verificar se o evento está aberto agora
+              if (now >= openDate && now < closeDate) {
+                isEventOpen = true
+                openUntil = closeDate
+              }
+            }
+          }
         }
       }
+    }
 
-      if (nextDay !== -1) {
-        const dayNames = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
+    // Se o evento estiver aberto agora
+    if (isEventOpen && openUntil) {
+      setIsOpen(true)
+      nextCloseDateRef.current = openUntil
+      setStatusClass("bg-[#33ff33]") // Verde brilhante para aberto
 
-        // Calcular o tempo exato em segundos até o próximo evento
-        const secondsUntilNext = daysUntilNext * 24 * 60 * 60
-        const hoursUntilNext = Math.floor(secondsUntilNext / 3600)
-        const minutesUntilNext = Math.floor((secondsUntilNext % 3600) / 60)
-        const remainingSeconds = secondsUntilNext % 60
+      // Formatar horário de fechamento
+      setNextTime(
+        `${openUntil.getHours().toString().padStart(2, "0")}:${openUntil.getMinutes().toString().padStart(2, "0")}`,
+      )
 
-        // Formatar o tempo restante com horas, minutos e segundos
-        setTimeRemaining(
-          `${hoursUntilNext}:${minutesUntilNext.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`,
-        )
-
-        setStatusText(`Próximo em ${dayNames[nextDay]}`)
-        setStatusClass("bg-red-600") // Vermelho para fechado
-        setIsOpen(false)
-        setNextTime(event.time || (event.openTimes && event.openTimes[0]) || "")
-      }
-
+      // Atualizar o tempo restante para fechamento
+      updateTimeRemainingToClose(openUntil)
       return
     }
 
-    // Processar eventos com múltiplos horários de abertura
-    if (event.openTimes && event.openTimes.length > 0) {
-      const now = currentTime.getTime()
-      const currentHour = currentTime.getHours()
-      const currentMinute = currentTime.getMinutes()
-      const currentSecond = currentTime.getSeconds()
-      const currentTimeSeconds = (currentHour * 60 + currentMinute) * 60 + currentSecond
+    // Se o evento não estiver aberto, encontrar a próxima abertura
+    let nextDate: Date | null = null
+    let minDiffMs = Number.POSITIVE_INFINITY
 
-      // Verificar se o evento está aberto agora
-      let isCurrentlyOpen = false
-      let nextOpeningTime = ""
-      let timeUntilNextState = Number.POSITIVE_INFINITY
+    // Verificar todos os dias da semana
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      const checkDay = (adjustedCurrentDay + dayOffset) % 7
 
-      for (const openTime of event.openTimes) {
-        const [openHour, openMinute] = openTime.split(":").map(Number)
-        const openTimeSeconds = (openHour * 60 + openMinute) * 60
+      // Verificar se o evento ocorre neste dia
+      if (eventDays.includes(checkDay)) {
+        // Processar eventos com múltiplos horários de abertura
+        if (event.openTimes && event.openTimes.length > 0) {
+          for (const openTime of event.openTimes) {
+            // Verificar se openTime é uma string válida
+            if (typeof openTime !== "string") {
+              console.error(`Formato inválido para openTime no evento ${event.name}:`, openTime)
+              continue
+            }
 
-        // Calcular o tempo de fechamento
-        const closeTimeSeconds = openTimeSeconds + (event.duration || 0) * 60
+            const timeParts = openTime.split(":")
+            if (timeParts.length !== 2) {
+              console.error(`Formato inválido para openTime no evento ${event.name}: ${openTime}`)
+              continue
+            }
 
-        // Verificar se está aberto agora
-        if (currentTimeSeconds >= openTimeSeconds && currentTimeSeconds < closeTimeSeconds) {
-          isCurrentlyOpen = true
+            const openHour = Number.parseInt(timeParts[0], 10)
+            const openMinute = Number.parseInt(timeParts[1], 10)
 
-          // Calcular tempo até fechar
-          const secondsUntilClose = closeTimeSeconds - currentTimeSeconds
-          const hoursUntilClose = Math.floor(secondsUntilClose / 3600)
-          const minutesUntilClose = Math.floor((secondsUntilClose % 3600) / 60)
-          const remainingSeconds = secondsUntilClose % 60
+            if (isNaN(openHour) || isNaN(openMinute)) {
+              console.error(`Valores inválidos para openTime no evento ${event.name}: ${openTime}`)
+              continue
+            }
 
-          setTimeRemaining(
-            hoursUntilClose > 0
-              ? `${hoursUntilClose}:${minutesUntilClose.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`
-              : `${minutesUntilClose}:${remainingSeconds.toString().padStart(2, "0")}`,
-          )
+            // Criar data para este horário
+            const openDate = new Date(now)
+            openDate.setDate(now.getDate() + dayOffset)
+            openDate.setHours(openHour, openMinute, 0, 0)
 
-          setStatusText(
-            `Fecha em ${hoursUntilClose > 0 ? `${hoursUntilClose}h ${minutesUntilClose}m` : `${minutesUntilClose}m ${remainingSeconds}s`}`,
-          )
-          setStatusClass("bg-[#33ff33]") // Verde brilhante para aberto
-          setIsOpen(true)
+            // Se este horário já passou hoje, ignorar
+            if (dayOffset === 0 && openDate <= now) continue
 
-          // Formatar horário de fechamento
-          const closeHour = Math.floor(closeTimeSeconds / 3600) % 24
-          const closeMinute = Math.floor((closeTimeSeconds % 3600) / 60)
-          setNextTime(`${closeHour.toString().padStart(2, "0")}:${closeMinute.toString().padStart(2, "0")}`)
-
-          break
+            const diffMs = openDate.getTime() - now.getTime()
+            if (diffMs < minDiffMs) {
+              minDiffMs = diffMs
+              nextDate = openDate
+            }
+          }
         }
+        // Processar eventos com horário único
+        else if (event.time) {
+          // Verificar se time é uma string válida
+          if (typeof event.time !== "string") {
+            console.error(`Formato inválido para time no evento ${event.name}:`, event.time)
+            continue
+          }
 
-        // Se não está aberto, calcular o próximo horário de abertura
-        let secondsUntilOpen
+          const timeParts = event.time.split(":")
+          if (timeParts.length !== 2) {
+            console.error(`Formato inválido para time no evento ${event.name}: ${event.time}`)
+            continue
+          }
 
-        if (openTimeSeconds > currentTimeSeconds) {
-          // Próxima abertura é hoje
-          secondsUntilOpen = openTimeSeconds - currentTimeSeconds
-        } else {
-          // Próxima abertura é amanhã
-          secondsUntilOpen = 24 * 3600 - currentTimeSeconds + openTimeSeconds
-        }
+          const eventHour = Number.parseInt(timeParts[0], 10)
+          const eventMinute = Number.parseInt(timeParts[1], 10)
 
-        if (secondsUntilOpen < timeUntilNextState) {
-          timeUntilNextState = secondsUntilOpen
-          nextOpeningTime = openTime
+          if (isNaN(eventHour) || isNaN(eventMinute)) {
+            console.error(`Valores inválidos para time no evento ${event.name}: ${event.time}`)
+            continue
+          }
 
-          const hoursUntilOpen = Math.floor(secondsUntilOpen / 3600)
-          const minutesUntilOpen = Math.floor((secondsUntilOpen % 3600) / 60)
-          const remainingSeconds = secondsUntilOpen % 60
+          // Criar data para este horário
+          const openDate = new Date(now)
+          openDate.setDate(now.getDate() + dayOffset)
+          openDate.setHours(eventHour, eventMinute, 0, 0)
 
-          setTimeRemaining(
-            hoursUntilOpen > 0
-              ? `${hoursUntilOpen}:${minutesUntilOpen.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`
-              : `${minutesUntilOpen}:${remainingSeconds.toString().padStart(2, "0")}`,
-          )
+          // Se este horário já passou hoje, ignorar
+          if (dayOffset === 0 && openDate <= now) continue
 
-          setStatusText(
-            `Abre em ${hoursUntilOpen > 0 ? `${hoursUntilOpen}h ${minutesUntilOpen}m` : `${minutesUntilOpen}m ${remainingSeconds}s`}`,
-          )
-          setStatusClass("bg-red-600") // Vermelho para fechado
-          setIsOpen(false)
-          setNextTime(nextOpeningTime)
+          const diffMs = openDate.getTime() - now.getTime()
+          if (diffMs < minDiffMs) {
+            minDiffMs = diffMs
+            nextDate = openDate
+          }
         }
       }
+    }
 
+    // Evento está fechado, próxima abertura
+    if (nextDate) {
+      nextEventDateRef.current = nextDate
+      setIsOpen(false)
+      setStatusClass("bg-red-600") // Vermelho para fechado
+
+      // Formatar horário de abertura
+      setNextTime(
+        `${nextDate.getHours().toString().padStart(2, "0")}:${nextDate.getMinutes().toString().padStart(2, "0")}`,
+      )
+
+      // Determinar o dia da semana
+      const dayNames = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
+      const nextDay = nextDate.getDay() === 0 ? 6 : nextDate.getDay() - 1
+      setStatusText(`Próximo em ${dayNames[nextDay]}`)
+
+      // Atualizar o tempo restante para abertura
+      updateTimeRemainingToOpen(nextDate)
+    } else {
+      // Fallback para eventos sem horário definido
+      setTimeRemaining("--:--")
+      setStatusText("Horário não disponível")
+      setStatusClass("bg-gray-800")
+      setIsOpen(false)
+      setNextTime("")
+    }
+  }
+
+  // Função para atualizar o tempo restante até a abertura
+  function updateTimeRemainingToOpen(nextDate: Date) {
+    const now = new Date()
+    const diffMs = nextDate.getTime() - now.getTime()
+    const diffSeconds = Math.floor(diffMs / 1000)
+
+    if (diffSeconds <= 0) {
+      // O evento pode ter aberto, mas não vamos recalcular aqui
+      // Isso será feito no próximo tick do intervalo
       return
     }
 
-    // Processar eventos com horário único
-    if (event.time) {
-      const now = currentTime.getTime()
-      const [eventHour, eventMinute] = event.time.split(":").map(Number)
+    const diffHours = Math.floor(diffSeconds / 3600)
+    const diffMinutes = Math.floor((diffSeconds % 3600) / 60)
+    const remainingSeconds = diffSeconds % 60
 
-      // Criar data para o horário de abertura do evento
-      const openDate = new Date(currentTime)
-      openDate.setHours(eventHour, eventMinute, 0, 0)
+    // Formatar tempo restante
+    const formattedTime = `${diffHours}:${diffMinutes.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`
 
-      // Criar data para o horário de fechamento do evento
-      const closeDate = new Date(openDate)
-      closeDate.setMinutes(closeDate.getMinutes() + (event.duration || 60))
+    setTimeRemaining(formattedTime)
+  }
 
-      // Verificar se o evento está aberto agora
-      if (now >= openDate.getTime() && now < closeDate.getTime()) {
-        // Evento está aberto, calcular tempo até fechar
-        const diffMs = closeDate.getTime() - now
-        const diffSeconds = Math.floor(diffMs / 1000)
-        const diffHours = Math.floor(diffSeconds / 3600)
-        const diffMinutes = Math.floor((diffSeconds % 3600) / 60)
-        const remainingSeconds = diffSeconds % 60
+  // Função para atualizar o tempo restante até o fechamento
+  function updateTimeRemainingToClose(closeDate: Date) {
+    const now = new Date()
+    const diffMs = closeDate.getTime() - now.getTime()
+    const diffSeconds = Math.floor(diffMs / 1000)
 
-        // Formatar tempo restante
-        let formattedTime = ""
-        if (diffHours > 0) {
-          formattedTime = `${diffHours}:${diffMinutes.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`
-        } else {
-          formattedTime = `${diffMinutes}:${remainingSeconds.toString().padStart(2, "0")}`
-        }
-
-        setTimeRemaining(formattedTime)
-        setStatusText(
-          `Fecha em ${diffHours > 0 ? `${diffHours}h ${diffMinutes}m` : `${diffMinutes}m ${remainingSeconds}s`}`,
-        )
-        setStatusClass("bg-[#33ff33]") // Verde brilhante para aberto
-        setIsOpen(true)
-
-        // Formatar horário de fechamento
-        setNextTime(
-          `${closeDate.getHours().toString().padStart(2, "0")}:${closeDate.getMinutes().toString().padStart(2, "0")}`,
-        )
-      } else {
-        // Evento está fechado, calcular tempo até abrir
-
-        // Se o horário de abertura já passou hoje, ajustar para amanhã
-        if (openDate.getTime() < now) {
-          openDate.setDate(openDate.getDate() + 1)
-        }
-
-        const diffMs = openDate.getTime() - now
-        const diffSeconds = Math.floor(diffMs / 1000)
-        const diffHours = Math.floor(diffSeconds / 3600)
-        const diffMinutes = Math.floor((diffSeconds % 3600) / 60)
-        const remainingSeconds = diffSeconds % 60
-
-        // Formatar tempo restante
-        let formattedTime = ""
-        if (diffHours > 0) {
-          formattedTime = `${diffHours}:${diffMinutes.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`
-        } else {
-          formattedTime = `${diffMinutes}:${remainingSeconds.toString().padStart(2, "0")}`
-        }
-
-        setTimeRemaining(formattedTime)
-        setStatusText(
-          `Abre em ${diffHours > 0 ? `${diffHours}h ${diffMinutes}m` : `${diffMinutes}m ${remainingSeconds}s`}`,
-        )
-        setStatusClass("bg-red-600") // Vermelho para fechado
-        setIsOpen(false)
-        setNextTime(event.time)
-      }
-
+    if (diffSeconds <= 0) {
+      // O evento pode ter fechado, mas não vamos recalcular aqui
+      // Isso será feito no próximo tick do intervalo
       return
     }
 
-    // Fallback para eventos sem horário definido
-    setTimeRemaining("--:--")
-    setStatusText("Horário não disponível")
-    setStatusClass("bg-gray-800")
-    setIsOpen(false)
-    setNextTime("")
+    const diffHours = Math.floor(diffSeconds / 3600)
+    const diffMinutes = Math.floor((diffSeconds % 3600) / 60)
+    const remainingSeconds = diffSeconds % 60
+
+    // Formatar tempo restante
+    const formattedTime = `${diffHours}:${diffMinutes.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`
+
+    setTimeRemaining(formattedTime)
+    setStatusText(
+      `Fecha em ${diffHours > 0 ? `${diffHours}h ${diffMinutes}m` : `${diffMinutes}m ${remainingSeconds}s`}`,
+    )
+  }
+
+  // Função para atualizar o tempo restante a cada segundo
+  function updateTimeRemaining() {
+    // Verificar se o componente ainda está montado
+    if (!isMountedRef.current) return
+
+    const now = new Date()
+
+    // Verificar se precisamos recalcular o status do evento
+    if (isOpen && nextCloseDateRef.current && now >= nextCloseDateRef.current) {
+      // O evento fechou, recalcular o status
+      calculateEventStatus()
+      return
+    }
+
+    if (!isOpen && nextEventDateRef.current && now >= nextEventDateRef.current) {
+      // O evento abriu, recalcular o status
+      calculateEventStatus()
+      return
+    }
+
+    // Atualizar o tempo restante sem recalcular o status
+    if (isOpen && nextCloseDateRef.current) {
+      // Evento está aberto, atualizar tempo até fechar
+      updateTimeRemainingToClose(nextCloseDateRef.current)
+    } else if (!isOpen && nextEventDateRef.current) {
+      // Evento está fechado, atualizar tempo até abrir
+      updateTimeRemainingToOpen(nextEventDateRef.current)
+    }
   }
 
   const getStatusLabel = () => {
