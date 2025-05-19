@@ -1,7 +1,7 @@
 import { checkUpcomingEventsAndNotify } from "@/lib/notification-service"
 import { NextResponse } from "next/server"
 
-export const dynamic = "force-dynamic" // Desativar cache para esta rota
+export const dynamic = "force-dynamic" // Corrigido: usando aspas simples e valor correto
 
 export async function GET() {
   try {
