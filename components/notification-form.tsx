@@ -11,21 +11,17 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "@/components/ui/use-toast"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertCircle, Info } from "lucide-react"
 
 export function NotificationForm() {
   const [name, setName] = useState("")
   const [phoneNumber, setPhoneNumber] = useState("")
   const [selectedEvents, setSelectedEvents] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError(null)
 
     if (!phoneNumber) {
-      setError("Por favor, informe um número de WhatsApp válido")
       toast({
         title: "Erro",
         description: "Por favor, informe um número de WhatsApp válido",
@@ -34,27 +30,7 @@ export function NotificationForm() {
       return
     }
 
-    // Verificar o tamanho do número após remover o prefixo whatsapp: (se existir)
-    let cleanNumber = phoneNumber
-    if (cleanNumber.startsWith("whatsapp:")) {
-      cleanNumber = cleanNumber.substring(9)
-    }
-    if (!cleanNumber.startsWith("+")) {
-      cleanNumber = "+" + cleanNumber
-    }
-
-    if (cleanNumber.length > 20) {
-      setError(`Número de telefone muito longo (${cleanNumber.length} caracteres). O limite é de 20 caracteres.`)
-      toast({
-        title: "Erro",
-        description: `Número de telefone muito longo. O limite é de 20 caracteres.`,
-        variant: "destructive",
-      })
-      return
-    }
-
     if (selectedEvents.length === 0) {
-      setError("Por favor, selecione pelo menos um evento")
       toast({
         title: "Erro",
         description: "Por favor, selecione pelo menos um evento",
@@ -83,9 +59,7 @@ export function NotificationForm() {
         setName("")
         setPhoneNumber("")
         setSelectedEvents([])
-        setError(null)
       } else {
-        setError(result.error || "Ocorreu um erro ao processar sua inscrição")
         toast({
           title: "Erro",
           description: result.error,
@@ -93,8 +67,6 @@ export function NotificationForm() {
         })
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido"
-      setError(errorMessage)
       toast({
         title: "Erro",
         description: "Ocorreu um erro ao processar sua inscrição",
@@ -128,17 +100,6 @@ export function NotificationForm() {
 
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
-          {error && (
-            <div className="p-3 bg-red-900/30 border border-red-700 rounded-md">
-              <div className="flex items-start">
-                <AlertCircle className="h-5 w-5 text-red-400 mr-2 mt-0.5" />
-                <div>
-                  <p className="text-red-300 text-sm">{error}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
           <div className="space-y-2">
             <Label htmlFor="name">Nome (opcional)</Label>
             <Input
@@ -162,13 +123,7 @@ export function NotificationForm() {
               required
               className="bg-gray-800 border-gray-700"
             />
-            <div className="flex items-start mt-1 text-xs text-amber-400">
-              <Info className="h-3.5 w-3.5 mr-1 mt-0.5 flex-shrink-0" />
-              <p>
-                Use o formato internacional com código do país (ex: +5511999999999). O sistema enviará as mensagens para
-                o seu WhatsApp.
-              </p>
-            </div>
+            <p className="text-xs text-gray-400">Use o formato internacional com código do país (ex: +5511999999999)</p>
           </div>
 
           <div className="space-y-2">

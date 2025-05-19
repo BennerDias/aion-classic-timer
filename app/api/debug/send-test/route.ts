@@ -2,16 +2,12 @@ import { NextResponse } from "next/server"
 
 export const dynamic = "force-dynamic" // Desativar cache para esta rota
 
-// Adicionar uma função para verificar e validar o número de telefone
-
 export async function POST(request: Request) {
   try {
     const body = await request.json()
     const { phoneNumber } = body
 
-
     if (!phoneNumber) {
-      console.log("Erro: Número de telefone não fornecido")
       return NextResponse.json({
         success: false,
         error: "Número de telefone não fornecido",
@@ -23,9 +19,7 @@ export async function POST(request: Request) {
     const authToken = process.env.TWILIO_AUTH_TOKEN
     const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER
 
-
     if (!accountSid || !authToken || !twilioPhoneNumber) {
-      console.log("Erro: Configuração do Twilio incompleta")
       return NextResponse.json({
         success: false,
         error: "Configuração do Twilio incompleta",
@@ -38,26 +32,12 @@ export async function POST(request: Request) {
     }
 
     // Formatar o número de telefone para o formato do WhatsApp
-    let formattedPhoneNumber = phoneNumber
-
-    // Remover o prefixo whatsapp: se o usuário já o incluiu
-    if (formattedPhoneNumber.startsWith("whatsapp:")) {
-      formattedPhoneNumber = formattedPhoneNumber.substring(9)
-    }
-
-    // Garantir que o número tenha o formato internacional
-    if (!formattedPhoneNumber.startsWith("+")) {
-      formattedPhoneNumber = "+" + formattedPhoneNumber
-    }
-
-    // Adicionar o prefixo whatsapp: para o envio
-    const whatsappFormattedNumber = `whatsapp:${formattedPhoneNumber}`
+    const formattedPhoneNumber = phoneNumber.startsWith("+") ? `whatsapp:${phoneNumber}` : `whatsapp:+${phoneNumber}`
 
     // Verificar se o número do Twilio já tem o prefixo whatsapp:
     const formattedTwilioNumber = twilioPhoneNumber.startsWith("whatsapp:")
       ? twilioPhoneNumber
       : `whatsapp:${twilioPhoneNumber}`
-
 
     // Criar mensagem de teste
     const message = `🎮 *Aion Classic Timer - TESTE DE CONFIGURAÇÃO* 🎮\n\nEsta é uma mensagem de teste para verificar a configuração do Twilio. Se você recebeu esta mensagem, a configuração está correta!`
@@ -98,67 +78,38 @@ export async function POST(request: Request) {
         throw new Error("Cliente Twilio inválido ou não possui o método messages.create")
       }
 
-      console.log("Pré Result")
-
       // Enviar mensagem
       const result = await client.messages.create({
         body: message,
         from: formattedTwilioNumber,
-        to: whatsappFormattedNumber,
+        to: formattedPhoneNumber,
       })
 
-      console.log(result)
-
-      console.log(`Mensagem de teste enviada para ${whatsappFormattedNumber}, SID: ${result.sid}`)
+      console.log(`Mensagem de teste enviada para ${phoneNumber}, SID: ${result.sid}`)
 
       return NextResponse.json({
         success: true,
         messageId: result.sid,
         details: {
           from: formattedTwilioNumber,
-          to: whatsappFormattedNumber,
+          to: formattedPhoneNumber,
           status: result.status,
         },
       })
     } catch (twilioError) {
       console.error("Erro com o Twilio:", twilioError)
 
-      // Em ambiente de desenvolvimento, simular sucesso
-      if (process.env.NODE_ENV === "development") {
-        console.log("Executando em modo de desenvolvimento - simulando envio bem-sucedido")
-        return NextResponse.json({
-          success: true,
-          messageId: "TESTE-" + Date.now(),
-          testMode: true,
-          details: {
-            from: formattedTwilioNumber,
-            to: whatsappFormattedNumber,
-            status: "queued",
-          },
-        })
-      }
-
       return NextResponse.json({
         success: false,
         error: `Erro com o Twilio: ${twilioError instanceof Error ? twilioError.message : "Erro desconhecido"}`,
         details: {
           from: formattedTwilioNumber,
-          to: whatsappFormattedNumber,
+          to: formattedPhoneNumber,
         },
       })
     }
   } catch (error) {
     console.error("Erro ao processar solicitação:", error)
-
-    // Em ambiente de desenvolvimento, simular sucesso
-    if (process.env.NODE_ENV === "development") {
-      return NextResponse.json({
-        success: true,
-        messageId: "TESTE-ERRO-" + Date.now(),
-        testMode: true,
-        errorCaught: true,
-      })
-    }
 
     return NextResponse.json({
       success: false,

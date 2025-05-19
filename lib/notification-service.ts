@@ -74,22 +74,11 @@ async function sendWhatsAppMessage(phoneNumber: string, message: string) {
         throw new Error("Cliente Twilio inválido ou não possui o método messages.create")
       }
 
-      // Verificar se o número do Twilio já tem o prefixo whatsapp:
+      // Formatar o número de telefone para o formato do WhatsApp
+      const formattedPhoneNumber = phoneNumber.startsWith("+") ? `whatsapp:${phoneNumber}` : `whatsapp:+${phoneNumber}`
       const formattedTwilioNumber = twilioPhoneNumber.startsWith("whatsapp:")
         ? twilioPhoneNumber
         : `whatsapp:${twilioPhoneNumber}`
-
-      // Formatar o número de telefone para o formato do WhatsApp
-      // O número está armazenado sem o prefixo whatsapp:, então precisamos adicioná-lo aqui
-      const formattedPhoneNumber = `whatsapp:${phoneNumber}`
-
-      // Logs detalhados para depuração
-      console.log("=== DETALHES DO ENVIO DE MENSAGEM WHATSAPP ===")
-      console.log("Número original do banco:", phoneNumber)
-      console.log("Número formatado para WhatsApp:", formattedPhoneNumber)
-      console.log("Número do Twilio:", formattedTwilioNumber)
-      console.log("Mensagem a ser enviada:", message)
-      console.log("===========================================")
 
       // Enviar mensagem
       const result = await client.messages.create({
@@ -207,7 +196,7 @@ export async function checkUpcomingEventsAndNotify() {
           // Criar uma mensagem de teste
           const message = `🎮 *Aion Classic Timer - TESTE* 🎮\n\nEsta é uma mensagem de teste para o evento *${testEvent.name}*. Em produção, você receberá notificações 30 minutos antes de cada evento começar.`
 
-          // Enviar a notificação de teste - o número já deve estar no formato whatsapp:+XXXXXXXXXX
+          // Enviar a notificação de teste
           const result = await sendWhatsAppMessage(testSubscriber.phone_number, message)
           console.log("Resultado do envio de teste:", result)
 
@@ -268,7 +257,7 @@ export async function checkUpcomingEventsAndNotify() {
             // Criar a mensagem
             const message = `🎮 *Aion Classic Timer* 🎮\n\nO evento *${event.name}* começará em 30 minutos (${eventDateStr} às ${eventTimeStr})! Prepare-se!`
 
-            // Enviar a notificação - o número já deve estar no formato whatsapp:+XXXXXXXXXX
+            // Enviar a notificação
             console.log(`Enviando notificação para ${subscriber.phone_number} sobre o evento ${event.name}`)
             const result = await sendWhatsAppMessage(subscriber.phone_number, message)
             console.log("Resultado do envio:", result)
@@ -311,89 +300,51 @@ export async function checkUpcomingEventsAndNotify() {
 
 // Função auxiliar para obter o próximo horário de um evento
 function getNextEventTime(event: Event, currentTime: Date): Date | null {
-  try {
-    // Obter o dia atual da semana (0 = Domingo, 1 = Segunda, ..., 6 = Sábado)
-    const currentDay = currentTime.getDay()
-    // Converter para nosso formato (0 = Segunda, ..., 6 = Domingo)
-    const adjustedCurrentDay = currentDay === 0 ? 6 : currentDay - 1
+  // Obter o dia atual da semana (0 = Domingo, 1 = Segunda, ..., 6 = Sábado)
+  const currentDay = currentTime.getDay()
+  // Converter para nosso formato (0 = Segunda, ..., 6 = Domingo)
+  const adjustedCurrentDay = currentDay === 0 ? 6 : currentDay - 1
 
-    // Verificar se o evento ocorre no dia atual
-    const eventDays = Array.isArray(event.day) ? event.day : [event.day]
+  // Verificar se o evento ocorre no dia atual
+  const eventDays = Array.isArray(event.day) ? event.day : [event.day]
 
-    // Encontrar a próxima data do evento
-    let nextDate: Date | null = null
-    let minDiffMs = Number.POSITIVE_INFINITY
+  // Encontrar a próxima data do evento
+  let nextDate: Date | null = null
+  let minDiffMs = Number.POSITIVE_INFINITY
 
-    // Verificar todos os dias da semana
-    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
-      const checkDay = (adjustedCurrentDay + dayOffset) % 7
+  // Verificar todos os dias da semana
+  for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+    const checkDay = (adjustedCurrentDay + dayOffset) % 7
 
-      // Verificar se o evento ocorre neste dia
-      if (eventDays.includes(checkDay)) {
-        // Processar eventos com múltiplos horários de abertura
-        if (event.openTimes && event.openTimes.length > 0) {
-          for (const openTime of event.openTimes) {
-            // Verificar se openTime é uma string válida
-            if (typeof openTime !== "string") {
-              console.error(`Formato inválido para openTime no evento ${event.name}:`, openTime)
-              continue
-            }
-
-            const timeParts = openTime.split(":")
-            if (timeParts.length !== 2) {
-              console.error(`Formato inválido para openTime no evento ${event.name}: ${openTime}`)
-              continue
-            }
-
-            const openHour = Number.parseInt(timeParts[0], 10)
-            const openMinute = Number.parseInt(timeParts[1], 10)
-
-            if (isNaN(openHour) || isNaN(openMinute)) {
-              console.error(`Valores inválidos para openTime no evento ${event.name}: ${openTime}`)
-              continue
-            }
-
-            // Criar data para este horário
-            const openDate = new Date(currentTime)
-            openDate.setDate(currentTime.getDate() + dayOffset)
-            openDate.setHours(openHour, openMinute, 0, 0)
-
-            // Se este horário já passou hoje, ignorar
-            if (dayOffset === 0 && openDate < currentTime) continue
-
-            const diffMs = openDate.getTime() - currentTime.getTime()
-            if (diffMs < minDiffMs) {
-              minDiffMs = diffMs
-              nextDate = openDate
-            }
-          }
-        }
-        // Processar eventos com horário único
-        else if (event.time) {
-          // Verificar se time é uma string válida
-          if (typeof event.time !== "string") {
-            console.error(`Formato inválido para time no evento ${event.name}:`, event.time)
+    // Verificar se o evento ocorre neste dia
+    if (eventDays.includes(checkDay)) {
+      // Processar eventos com múltiplos horários de abertura
+      if (event.openTimes && event.openTimes.length > 0) {
+        for (const openTime of event.openTimes) {
+          // Verificar se openTime é uma string válida
+          if (typeof openTime !== "string") {
+            console.error(`Formato inválido para openTime no evento ${event.name}:`, openTime)
             continue
           }
 
-          const timeParts = event.time.split(":")
+          const timeParts = openTime.split(":")
           if (timeParts.length !== 2) {
-            console.error(`Formato inválido para time no evento ${event.name}: ${event.time}`)
+            console.error(`Formato inválido para openTime no evento ${event.name}: ${openTime}`)
             continue
           }
 
-          const eventHour = Number.parseInt(timeParts[0], 10)
-          const eventMinute = Number.parseInt(timeParts[1], 10)
+          const openHour = Number.parseInt(timeParts[0], 10)
+          const openMinute = Number.parseInt(timeParts[1], 10)
 
-          if (isNaN(eventHour) || isNaN(eventMinute)) {
-            console.error(`Valores inválidos para time no evento ${event.name}: ${event.time}`)
+          if (isNaN(openHour) || isNaN(openMinute)) {
+            console.error(`Valores inválidos para openTime no evento ${event.name}: ${openTime}`)
             continue
           }
 
           // Criar data para este horário
           const openDate = new Date(currentTime)
           openDate.setDate(currentTime.getDate() + dayOffset)
-          openDate.setHours(eventHour, eventMinute, 0, 0)
+          openDate.setHours(openHour, openMinute, 0, 0)
 
           // Se este horário já passou hoje, ignorar
           if (dayOffset === 0 && openDate < currentTime) continue
@@ -405,11 +356,44 @@ function getNextEventTime(event: Event, currentTime: Date): Date | null {
           }
         }
       }
-    }
+      // Processar eventos com horário único
+      else if (event.time) {
+        // Verificar se time é uma string válida
+        if (typeof event.time !== "string") {
+          console.error(`Formato inválido para time no evento ${event.name}:`, event.time)
+          continue
+        }
 
-    return nextDate
-  } catch (error) {
-    console.error("Erro ao calcular próximo horário do evento:", error)
-    return null
+        const timeParts = event.time.split(":")
+        if (timeParts.length !== 2) {
+          console.error(`Formato inválido para time no evento ${event.name}: ${event.time}`)
+          continue
+        }
+
+        const eventHour = Number.parseInt(timeParts[0], 10)
+        const eventMinute = Number.parseInt(timeParts[1], 10)
+
+        if (isNaN(eventHour) || isNaN(eventMinute)) {
+          console.error(`Valores inválidos para time no evento ${event.name}: ${event.time}`)
+          continue
+        }
+
+        // Criar data para este horário
+        const openDate = new Date(currentTime)
+        openDate.setDate(currentTime.getDate() + dayOffset)
+        openDate.setHours(eventHour, eventMinute, 0, 0)
+
+        // Se este horário já passou hoje, ignorar
+        if (dayOffset === 0 && openDate < currentTime) continue
+
+        const diffMs = openDate.getTime() - currentTime.getTime()
+        if (diffMs < minDiffMs) {
+          minDiffMs = diffMs
+          nextDate = openDate
+        }
+      }
+    }
   }
+
+  return nextDate
 }

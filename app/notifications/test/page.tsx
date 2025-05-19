@@ -33,20 +33,23 @@ export default function TestNotificationsPage() {
 
       console.log("Resposta recebida:", response.status, response.statusText)
 
+      // Verificar se a resposta é bem-sucedida
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("Erro na resposta:", errorText)
+        setRawResponse(errorText)
+        throw new Error(`Erro na API: ${response.status} ${response.statusText}`)
+      }
+
       // Obter o texto da resposta para debug
       const responseText = await response.text()
       console.log("Texto da resposta:", responseText)
       setRawResponse(responseText)
 
-      // Verificar se a resposta é bem-sucedida
-      if (!response.ok) {
-        throw new Error(`Erro na API: ${response.status} ${response.statusText}`)
-      }
-
       // Tentar analisar a resposta como JSON
       let data
       try {
-        data = responseText ? JSON.parse(responseText) : { success: false, error: "Resposta vazia" }
+        data = JSON.parse(responseText)
       } catch (jsonError) {
         console.error("Erro ao analisar JSON:", jsonError)
         throw new Error(`Erro ao analisar resposta JSON: ${responseText.substring(0, 100)}...`)
@@ -75,7 +78,7 @@ export default function TestNotificationsPage() {
       setError(errorMessage)
       toast({
         title: "Erro",
-        description: errorMessage,
+        description: "Ocorreu um erro ao testar notificações",
         variant: "destructive",
       })
     } finally {

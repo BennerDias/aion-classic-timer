@@ -29,7 +29,6 @@ export function SubscriberList() {
   const [subscribers, setSubscribers] = useState<Subscriber[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   // Carregar assinantes ao montar o componente
   useEffect(() => {
@@ -40,13 +39,11 @@ export function SubscriberList() {
   const loadSubscribers = async () => {
     try {
       setIsLoading(true)
-      setError(null)
       const result = await getSubscribers()
 
       if (result.success) {
         setSubscribers(result.subscribers as Subscriber[])
       } else {
-        setError(result.error || "Erro desconhecido ao carregar assinantes")
         toast({
           title: "Erro",
           description: result.error,
@@ -54,8 +51,6 @@ export function SubscriberList() {
         })
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido"
-      setError(errorMessage)
       toast({
         title: "Erro",
         description: "Ocorreu um erro ao carregar os assinantes",
@@ -143,12 +138,6 @@ export function SubscriberList() {
     return event ? event.name : "Evento desconhecido"
   }
 
-  // Função para formatar o número de telefone para exibição
-  const formatPhoneNumber = (phoneNumber: string) => {
-    // O número já está armazenado sem o prefixo whatsapp:
-    return phoneNumber
-  }
-
   return (
     <Card className="w-full bg-gray-900 border-gray-800">
       <CardHeader className="flex flex-row items-center justify-between">
@@ -167,14 +156,6 @@ export function SubscriberList() {
           <div className="flex justify-center py-8">
             <RefreshCw className="h-8 w-8 animate-spin text-cyan-400" />
           </div>
-        ) : error ? (
-          <div className="text-center py-8 text-red-400">
-            <p className="mb-2">Erro ao carregar assinantes:</p>
-            <p className="text-sm">{error}</p>
-            <Button variant="outline" size="sm" onClick={handleRefresh} className="mt-4">
-              Tentar novamente
-            </Button>
-          </div>
         ) : subscribers.length === 0 ? (
           <div className="text-center py-8 text-gray-400">Nenhum assinante encontrado</div>
         ) : (
@@ -185,7 +166,7 @@ export function SubscriberList() {
                   <div>
                     <h3 className="font-medium">
                       {subscriber.name || "Sem nome"}
-                      <span className="ml-2 text-gray-400 text-sm">({formatPhoneNumber(subscriber.phone_number)})</span>
+                      <span className="ml-2 text-gray-400 text-sm">({subscriber.phone_number})</span>
                     </h3>
                     <p className="text-xs text-gray-400">
                       Cadastrado em {new Date(subscriber.created_at).toLocaleDateString("pt-BR")}
@@ -225,14 +206,14 @@ export function SubscriberList() {
                 <div>
                   <h4 className="text-sm font-medium mb-2">Eventos inscritos:</h4>
                   <div className="flex flex-wrap gap-2">
-                    {subscriber.notifications && subscriber.notifications.length > 0 ? (
+                    {subscriber.notifications.length === 0 ? (
+                      <span className="text-sm text-gray-400">Nenhum evento selecionado</span>
+                    ) : (
                       subscriber.notifications.map((notification) => (
                         <Badge key={notification.id} variant="secondary" className="bg-gray-700 hover:bg-gray-600">
                           {getEventName(notification.event_id)}
                         </Badge>
                       ))
-                    ) : (
-                      <span className="text-sm text-gray-400">Nenhum evento selecionado</span>
                     )}
                   </div>
                 </div>

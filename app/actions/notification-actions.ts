@@ -11,38 +11,8 @@ export async function subscribeToEvents(formData: SubscriptionFormData) {
     const supabase = createServerSupabaseClient()
 
     // Validar número de telefone
-    let phoneNumber = formData.phone_number.trim()
-
-    console.log("=== DETALHES DO NÚMERO DE TELEFONE ===")
-    console.log("Número original:", phoneNumber)
-
-    // Remover o prefixo whatsapp: se o usuário já o incluiu
-    if (phoneNumber.startsWith("whatsapp:")) {
-      phoneNumber = phoneNumber.substring(9)
-      console.log("Número após remover prefixo whatsapp:", phoneNumber)
-    }
-
-    // Garantir que o número tenha o formato internacional com +
-    if (!phoneNumber.startsWith("+")) {
-      phoneNumber = "+" + phoneNumber
-      console.log("Número após adicionar + (se necessário):", phoneNumber)
-    }
-
-    // Verificar se o número excede o limite de 20 caracteres
-    if (phoneNumber.length > 20) {
-      console.log("Número excede o limite de 20 caracteres:", phoneNumber.length)
-      return {
-        success: false,
-        error: `Número de telefone muito longo (${phoneNumber.length} caracteres). O limite é de 20 caracteres.`,
-      }
-    }
-
-    console.log("Número final a ser salvo:", phoneNumber)
-    console.log("Tamanho do número:", phoneNumber.length)
-    console.log("===========================================")
-
-    // Validar o formato do número
-    if (!phoneNumber.match(/^\+[1-9]\d{1,14}$/)) {
+    const phoneNumber = formData.phone_number.trim()
+    if (!phoneNumber.match(/^\+?[1-9]\d{1,14}$/)) {
       return { success: false, error: "Número de telefone inválido. Use o formato internacional (ex: +5511999999999)" }
     }
 
@@ -59,12 +29,12 @@ export async function subscribeToEvents(formData: SubscriptionFormData) {
       return { success: false, error: "Eventos inválidos selecionados" }
     }
 
-    // Inserir o assinante com o número sem o prefixo whatsapp:
+    // Inserir o assinante
     const { data: subscriber, error: subscriberError } = await supabase
       .from("whatsapp_subscribers")
       .upsert(
         {
-          phone_number: phoneNumber, // Salvar sem o prefixo whatsapp:
+          phone_number: phoneNumber,
           name: formData.name || null,
           active: true,
           updated_at: new Date().toISOString(),
@@ -79,19 +49,11 @@ export async function subscribeToEvents(formData: SubscriptionFormData) {
 
     if (subscriberError) {
       console.error("Erro ao adicionar assinante:", subscriberError)
-      return { success: false, error: "Erro ao adicionar assinante: " + subscriberError.message }
+      return { success: false, error: "Erro ao adicionar assinante" }
     }
 
     // Remover notificações existentes para este assinante
-    const { error: deleteError } = await supabase
-      .from("event_notifications")
-      .delete()
-      .eq("subscriber_id", subscriber.id)
-
-    if (deleteError) {
-      console.error("Erro ao remover notificações existentes:", deleteError)
-      return { success: false, error: "Erro ao atualizar preferências de notificação: " + deleteError.message }
-    }
+    await supabase.from("event_notifications").delete().eq("subscriber_id", subscriber.id)
 
     // Adicionar as novas preferências de notificação
     const notificationData = formData.event_ids.map((eventId) => ({
@@ -103,17 +65,14 @@ export async function subscribeToEvents(formData: SubscriptionFormData) {
 
     if (notificationError) {
       console.error("Erro ao adicionar preferências de notificação:", notificationError)
-      return { success: false, error: "Erro ao adicionar preferências de notificação: " + notificationError.message }
+      return { success: false, error: "Erro ao adicionar preferências de notificação" }
     }
 
-    revalidatePath("/notifications")
+    revalidatePath("/")
     return { success: true, message: "Inscrição realizada com sucesso!" }
   } catch (error) {
     console.error("Erro ao processar inscrição:", error)
-    return {
-      success: false,
-      error: `Erro ao processar inscrição: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
-    }
+    return { success: false, error: "Erro ao processar inscrição" }
   }
 }
 
@@ -122,7 +81,6 @@ export async function getSubscribers() {
   try {
     const supabase = createServerSupabaseClient()
 
-    // Obter todos os assinantes
     const { data: subscribers, error: subscribersError } = await supabase
       .from("whatsapp_subscribers")
       .select("*")
@@ -130,23 +88,14 @@ export async function getSubscribers() {
 
     if (subscribersError) {
       console.error("Erro ao obter assinantes:", subscribersError)
-      return {
-        success: false,
-        error: "Erro ao obter assinantes: " + subscribersError.message,
-        subscribers: [],
-      }
+      return { success: false, error: "Erro ao obter assinantes", subscribers: [] }
     }
 
-    // Obter todas as notificações
     const { data: notifications, error: notificationsError } = await supabase.from("event_notifications").select("*")
 
     if (notificationsError) {
       console.error("Erro ao obter notificações:", notificationsError)
-      return {
-        success: false,
-        error: "Erro ao obter notificações: " + notificationsError.message,
-        subscribers: [],
-      }
+      return { success: false, error: "Erro ao obter notificações", subscribers: [] }
     }
 
     // Mapear as notificações para cada assinante
@@ -154,18 +103,14 @@ export async function getSubscribers() {
       const subscriberNotifications = notifications.filter((n) => n.subscriber_id === subscriber.id)
       return {
         ...subscriber,
-        notifications: subscriberNotifications || [],
+        notifications: subscriberNotifications,
       }
     })
 
     return { success: true, subscribers: subscribersWithNotifications }
   } catch (error) {
     console.error("Erro ao obter assinantes:", error)
-    return {
-      success: false,
-      error: `Erro ao obter assinantes: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
-      subscribers: [],
-    }
+    return { success: false, error: "Erro ao obter assinantes", subscribers: [] }
   }
 }
 
@@ -174,25 +119,18 @@ export async function removeSubscriber(subscriberId: string) {
   try {
     const supabase = createServerSupabaseClient()
 
-    // Primeiro remover as notificações associadas
-    await supabase.from("event_notifications").delete().eq("subscriber_id", subscriberId)
-
-    // Depois remover o assinante
     const { error } = await supabase.from("whatsapp_subscribers").delete().eq("id", subscriberId)
 
     if (error) {
       console.error("Erro ao remover assinante:", error)
-      return { success: false, error: "Erro ao remover assinante: " + error.message }
+      return { success: false, error: "Erro ao remover assinante" }
     }
 
-    revalidatePath("/notifications")
+    revalidatePath("/")
     return { success: true, message: "Assinante removido com sucesso!" }
   } catch (error) {
     console.error("Erro ao remover assinante:", error)
-    return {
-      success: false,
-      error: `Erro ao remover assinante: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
-    }
+    return { success: false, error: "Erro ao remover assinante" }
   }
 }
 
@@ -208,16 +146,13 @@ export async function toggleSubscriberStatus(subscriberId: string, active: boole
 
     if (error) {
       console.error("Erro ao atualizar status do assinante:", error)
-      return { success: false, error: "Erro ao atualizar status do assinante: " + error.message }
+      return { success: false, error: "Erro ao atualizar status do assinante" }
     }
 
-    revalidatePath("/notifications")
+    revalidatePath("/")
     return { success: true, message: `Assinante ${active ? "ativado" : "desativado"} com sucesso!` }
   } catch (error) {
     console.error("Erro ao atualizar status do assinante:", error)
-    return {
-      success: false,
-      error: `Erro ao atualizar status do assinante: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
-    }
+    return { success: false, error: "Erro ao atualizar status do assinante" }
   }
 }
