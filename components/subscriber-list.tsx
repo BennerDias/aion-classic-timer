@@ -145,10 +145,7 @@ export function SubscriberList() {
 
   // Função para formatar o número de telefone para exibição
   const formatPhoneNumber = (phoneNumber: string) => {
-    // Remover o prefixo whatsapp: para exibição
-    if (phoneNumber.startsWith("whatsapp:")) {
-      return phoneNumber.substring(9)
-    }
+    // O número já está armazenado sem o prefixo whatsapp:
     return phoneNumber
   }
 

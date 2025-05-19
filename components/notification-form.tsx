@@ -34,6 +34,25 @@ export function NotificationForm() {
       return
     }
 
+    // Verificar o tamanho do número após remover o prefixo whatsapp: (se existir)
+    let cleanNumber = phoneNumber
+    if (cleanNumber.startsWith("whatsapp:")) {
+      cleanNumber = cleanNumber.substring(9)
+    }
+    if (!cleanNumber.startsWith("+")) {
+      cleanNumber = "+" + cleanNumber
+    }
+
+    if (cleanNumber.length > 20) {
+      setError(`Número de telefone muito longo (${cleanNumber.length} caracteres). O limite é de 20 caracteres.`)
+      toast({
+        title: "Erro",
+        description: `Número de telefone muito longo. O limite é de 20 caracteres.`,
+        variant: "destructive",
+      })
+      return
+    }
+
     if (selectedEvents.length === 0) {
       setError("Por favor, selecione pelo menos um evento")
       toast({
@@ -146,8 +165,8 @@ export function NotificationForm() {
             <div className="flex items-start mt-1 text-xs text-amber-400">
               <Info className="h-3.5 w-3.5 mr-1 mt-0.5 flex-shrink-0" />
               <p>
-                Use o formato internacional com código do país (ex: +5511999999999). O sistema adicionará
-                automaticamente o prefixo "whatsapp:" necessário para o envio das mensagens.
+                Use o formato internacional com código do país (ex: +5511999999999). O sistema enviará as mensagens para
+                o seu WhatsApp.
               </p>
             </div>
           </div>

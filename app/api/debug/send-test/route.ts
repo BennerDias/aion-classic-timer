@@ -2,12 +2,16 @@ import { NextResponse } from "next/server"
 
 export const dynamic = "force-dynamic" // Desativar cache para esta rota
 
+// Adicionar uma função para verificar e validar o número de telefone
+
 export async function POST(request: Request) {
   try {
     const body = await request.json()
     const { phoneNumber } = body
 
+
     if (!phoneNumber) {
+      console.log("Erro: Número de telefone não fornecido")
       return NextResponse.json({
         success: false,
         error: "Número de telefone não fornecido",
@@ -19,7 +23,9 @@ export async function POST(request: Request) {
     const authToken = process.env.TWILIO_AUTH_TOKEN
     const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER
 
+
     if (!accountSid || !authToken || !twilioPhoneNumber) {
+      console.log("Erro: Configuração do Twilio incompleta")
       return NextResponse.json({
         success: false,
         error: "Configuração do Twilio incompleta",
@@ -39,13 +45,19 @@ export async function POST(request: Request) {
       formattedPhoneNumber = formattedPhoneNumber.substring(9)
     }
 
-    // Adicionar o prefixo whatsapp: e garantir que o número tenha o formato internacional
-    formattedPhoneNumber = `whatsapp:${formattedPhoneNumber.startsWith("+") ? formattedPhoneNumber : `+${formattedPhoneNumber}`}`
+    // Garantir que o número tenha o formato internacional
+    if (!formattedPhoneNumber.startsWith("+")) {
+      formattedPhoneNumber = "+" + formattedPhoneNumber
+    }
+
+    // Adicionar o prefixo whatsapp: para o envio
+    const whatsappFormattedNumber = `whatsapp:${formattedPhoneNumber}`
 
     // Verificar se o número do Twilio já tem o prefixo whatsapp:
     const formattedTwilioNumber = twilioPhoneNumber.startsWith("whatsapp:")
       ? twilioPhoneNumber
       : `whatsapp:${twilioPhoneNumber}`
+
 
     // Criar mensagem de teste
     const message = `🎮 *Aion Classic Timer - TESTE DE CONFIGURAÇÃO* 🎮\n\nEsta é uma mensagem de teste para verificar a configuração do Twilio. Se você recebeu esta mensagem, a configuração está correta!`
@@ -86,21 +98,25 @@ export async function POST(request: Request) {
         throw new Error("Cliente Twilio inválido ou não possui o método messages.create")
       }
 
+      console.log("Pré Result")
+
       // Enviar mensagem
       const result = await client.messages.create({
         body: message,
         from: formattedTwilioNumber,
-        to: formattedPhoneNumber,
+        to: whatsappFormattedNumber,
       })
 
-      console.log(`Mensagem de teste enviada para ${formattedPhoneNumber}, SID: ${result.sid}`)
+      console.log(result)
+
+      console.log(`Mensagem de teste enviada para ${whatsappFormattedNumber}, SID: ${result.sid}`)
 
       return NextResponse.json({
         success: true,
         messageId: result.sid,
         details: {
           from: formattedTwilioNumber,
-          to: formattedPhoneNumber,
+          to: whatsappFormattedNumber,
           status: result.status,
         },
       })
@@ -116,7 +132,7 @@ export async function POST(request: Request) {
           testMode: true,
           details: {
             from: formattedTwilioNumber,
-            to: formattedPhoneNumber,
+            to: whatsappFormattedNumber,
             status: "queued",
           },
         })
@@ -127,7 +143,7 @@ export async function POST(request: Request) {
         error: `Erro com o Twilio: ${twilioError instanceof Error ? twilioError.message : "Erro desconhecido"}`,
         details: {
           from: formattedTwilioNumber,
-          to: formattedPhoneNumber,
+          to: whatsappFormattedNumber,
         },
       })
     }

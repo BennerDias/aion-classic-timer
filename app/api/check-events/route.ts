@@ -5,10 +5,17 @@ export const dynamic = "force-dynamic" // Desativar cache para esta rota
 
 export async function GET() {
   try {
-    console.log("Iniciando verificação de eventos...")
+    console.log("=== INICIANDO VERIFICAÇÃO DE EVENTOS ===")
+    console.log("Data/Hora:", new Date().toISOString())
+    console.log("Ambiente:", process.env.NODE_ENV)
+    console.log("===========================================")
 
     const result = await checkUpcomingEventsAndNotify()
-    console.log("Resultado da verificação:", result)
+    console.log("=== RESULTADO DA VERIFICAÇÃO ===")
+    console.log("Sucesso:", result.success)
+    console.log("Mensagem:", result.message)
+    console.log("Notificações enviadas:", result.notificationsSent || 0)
+    console.log("===========================================")
 
     if (result.success) {
       return NextResponse.json({
@@ -24,7 +31,10 @@ export async function GET() {
       })
     }
   } catch (error) {
-    console.error("Erro ao verificar eventos:", error)
+    console.error("=== ERRO NA VERIFICAÇÃO DE EVENTOS ===")
+    console.error(error)
+    console.error("===========================================")
+
     // Garantir que sempre retornamos um JSON válido, mesmo em caso de erro
     return NextResponse.json({
       success: false,

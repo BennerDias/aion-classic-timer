@@ -10,21 +10,41 @@ export async function subscribeToEvents(formData: SubscriptionFormData) {
   try {
     const supabase = createServerSupabaseClient()
 
-    // Validar número de telefone (sem o prefixo whatsapp:)
+    // Validar número de telefone
     let phoneNumber = formData.phone_number.trim()
+
+    console.log("=== DETALHES DO NÚMERO DE TELEFONE ===")
+    console.log("Número original:", phoneNumber)
 
     // Remover o prefixo whatsapp: se o usuário já o incluiu
     if (phoneNumber.startsWith("whatsapp:")) {
       phoneNumber = phoneNumber.substring(9)
+      console.log("Número após remover prefixo whatsapp:", phoneNumber)
     }
+
+    // Garantir que o número tenha o formato internacional com +
+    if (!phoneNumber.startsWith("+")) {
+      phoneNumber = "+" + phoneNumber
+      console.log("Número após adicionar + (se necessário):", phoneNumber)
+    }
+
+    // Verificar se o número excede o limite de 20 caracteres
+    if (phoneNumber.length > 20) {
+      console.log("Número excede o limite de 20 caracteres:", phoneNumber.length)
+      return {
+        success: false,
+        error: `Número de telefone muito longo (${phoneNumber.length} caracteres). O limite é de 20 caracteres.`,
+      }
+    }
+
+    console.log("Número final a ser salvo:", phoneNumber)
+    console.log("Tamanho do número:", phoneNumber.length)
+    console.log("===========================================")
 
     // Validar o formato do número
-    if (!phoneNumber.match(/^\+?[1-9]\d{1,14}$/)) {
+    if (!phoneNumber.match(/^\+[1-9]\d{1,14}$/)) {
       return { success: false, error: "Número de telefone inválido. Use o formato internacional (ex: +5511999999999)" }
     }
-
-    // Adicionar o prefixo whatsapp: ao número
-    const whatsappNumber = `whatsapp:${phoneNumber.startsWith("+") ? phoneNumber : `+${phoneNumber}`}`
 
     // Validar eventos selecionados
     if (!formData.event_ids || formData.event_ids.length === 0) {
@@ -39,12 +59,12 @@ export async function subscribeToEvents(formData: SubscriptionFormData) {
       return { success: false, error: "Eventos inválidos selecionados" }
     }
 
-    // Inserir o assinante com o número já formatado para WhatsApp
+    // Inserir o assinante com o número sem o prefixo whatsapp:
     const { data: subscriber, error: subscriberError } = await supabase
       .from("whatsapp_subscribers")
       .upsert(
         {
-          phone_number: whatsappNumber, // Salvar com o prefixo whatsapp:
+          phone_number: phoneNumber, // Salvar sem o prefixo whatsapp:
           name: formData.name || null,
           active: true,
           updated_at: new Date().toISOString(),
