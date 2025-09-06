@@ -51,6 +51,6 @@ Initially created to support a group of friends in managing **Aion Classic Europ
 ## 👨‍💻 Author  
 
 **Benner Dias**  
-[GitHub](https://github.com/BennerDias) | [LinkedIn](https://www.linkedin.com/) | [Portfolio](#)  
+[GitHub](https://github.com/BennerDias) | [LinkedIn](https://www.linkedin.com/BennerDias) 
 
 ---
