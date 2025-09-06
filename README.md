@@ -1,30 +1,56 @@
-# Aion Classic Timer
+# Aion Classic Timer  
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+Web application designed to help **Aion Classic Europe** players track recurring in-game events.  
+The project provides a simple and functional interface to display event timers, allowing players to plan and organize their gameplay more effectively.  
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/bennerdias-projects/v0-aion-classic-schedule)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/uvu65WqVWrS)
+🔗 **Live Demo:** [aiontimer.vercel.app](https://aiontimer.vercel.app)  
+🔗 **Repository:** [GitHub - aion-classic-timer](https://github.com/BennerDias/aion-classic-timer)  
 
-## Overview
+---
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+## 🚀 Technologies  
 
-## Deployment
+- **Front-end:** HTML, CSS, JavaScript  
+- **Deployment:** [Vercel](https://vercel.com/)  
+- **Version Control:** Git & GitHub  
 
-Your project is live at:
+---
 
-**[https://vercel.com/bennerdias-projects/v0-aion-classic-schedule](https://vercel.com/bennerdias-projects/v0-aion-classic-schedule)**
+## 📌 Features  
 
-## Build your app
+- Display of **event timers** for Aion Classic Europe.  
+- Automatic countdown for upcoming events.  
+- Responsive and user-friendly interface.  
+- Custom logic implemented to ensure reliable event synchronization.  
 
-Continue building your app on:
+---
 
-**[https://v0.dev/chat/projects/uvu65WqVWrS](https://v0.dev/chat/projects/uvu65WqVWrS)**
+## 🛠️ Project Structure  
 
-## How It Works
+- `index.html` → Base structure of the application.  
+- `style.css` → Styling and layout.  
+- `script.js` → Event timer logic and functionality.  
 
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+---
+
+## 🎯 Purpose  
+
+Initially created to support a group of friends in managing **Aion Classic Europe events**, the project evolved into a public tool with the potential to assist the wider gaming community.  
+
+---
+
+## 📌 Future Improvements  
+
+- [ ] Multi-language support.  
+- [ ] Configurable/custom events.  
+- [ ] Admin panel for event management.  
+- [ ] Enhanced mobile responsiveness.  
+
+---
+
+## 👨‍💻 Author  
+
+**Benner Dias**  
+[GitHub](https://github.com/BennerDias) | [LinkedIn](https://www.linkedin.com/) | [Portfolio](#)  
+
+---
